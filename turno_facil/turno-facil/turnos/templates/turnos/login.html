@@ -1,0 +1,17 @@
+{% extends 'turnos/base.html' %}
+{% block titulo %}Ingreso de operador{% endblock %}
+{% block contenido %}
+<div style="max-width:420px;margin:auto">
+  <h1 class="entra" style="font-size:2.4rem;margin-bottom:1.5rem">Ingreso de operador</h1>
+  <form method="post" class="glass entra">
+    {% csrf_token %}
+    {% if form.errors %}<div class="aviso" role="alert">Usuario o contraseña incorrectos. Inténtalo de nuevo.</div>{% endif %}
+    <div class="campo"><label for="id_username">Usuario</label>
+      <input id="id_username" name="username" autocomplete="username" required autofocus></div>
+    <div class="campo"><label for="id_password">Contraseña</label>
+      <input id="id_password" name="password" type="password" autocomplete="current-password" required></div>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="btn btn-primary" style="width:100%" type="submit">Entrar</button>
+  </form>
+</div>
+{% endblock %}

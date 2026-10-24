@@ -1,0 +1,153 @@
+{% extends 'turnos/base.html' %}
+{% block titulo %}Panel{% endblock %}
+{% block contenido %}
+<div id="panel" data-huella="{{ huella }}" data-api="{% url 'api_estado' %}">
+<div class="panel-top entra">
+  <h1 style="font-size:clamp(1.8rem,4vw,2.6rem)">Panel de atención</h1>
+  <div class="btn-grupo">
+    <a class="btn btn-sm" href="{% url 'pantalla_publica' %}" target="_blank" rel="noopener">Abrir pantalla pública</a>
+    <a class="btn btn-sm" href="{% url 'estadisticas' %}">Estadísticas</a>
+  </div>
+</div>
+
+<div class="grid g4" style="margin-bottom:1.4rem">
+  <div class="glass tilt entra"><div class="dato"><span data-cuenta="{{ pendientes }}">0</span><small>en espera</small></div></div>
+  <div class="glass tilt entra"><div class="dato" style="color:var(--ambar)"><span data-cuenta="{{ atendiendo_n }}">0</span><small>atendiendo</small></div></div>
+  <div class="glass tilt entra"><div class="dato" style="color:var(--verde)"><span data-cuenta="{{ atendidos }}">0</span><small>atendidos hoy</small></div></div>
+  <div class="glass tilt entra"><div class="dato"><span data-cuenta="{{ espera_nuevo }}">0</span> min<small>espera para quien llegue ahora</small></div></div>
+</div>
+
+<h2 class="entra" style="margin-bottom:.8rem">Puestos</h2>
+<div class="grid g2 entra" style="margin-bottom:1.6rem">
+  {% for tj in tarjetas %}
+  {% with p=tj.puesto t=tj.turno %}
+  <div class="glass puesto {% if t %}ocupado{% endif %}">
+    <div class="puesto-cab">
+      <h3>{{ p.nombre|default:"Atención general" }}</h3>
+      <small style="color:var(--suave)">{% if p %}{% for s in p.servicios.all %}{{ s.prefijo }}{% if not forloop.last %}, {% endif %}{% empty %}Atiende todos los servicios{% endfor %}{% endif %}</small>
+    </div>
+    {% if t %}
+      <div class="puesto-turno">
+        <span class="codigo">{{ t.etiqueta }}</span>
+        <span class="cronometro" data-desde="{{ t.inicio_atencion|date:'c' }}" title="Tiempo de atención">00:00</span>
+      </div>
+      <p><b>{{ t.cliente }}</b>{% if t.placa %} · <span class="codigo" style="font-size:1rem">{{ t.placa }}</span>{% endif %}{% if t.vehiculo %} · {{ t.vehiculo }}{% endif %}</p>
+      <p style="color:var(--suave)">{{ t.servicio.nombre|default:"Sin servicio" }}{% if t.telefono %} · {{ t.telefono }}{% endif %}</p>
+      {% if t.necesidad %}<p style="margin-top:.4rem">{{ t.necesidad|truncatechars:140 }}</p>{% endif %}
+      <div class="btn-grupo" style="margin-top:1rem">
+        <form class="fila-form" method="post" action="{% url 'llamar_siguiente' %}">{% csrf_token %}
+          {% if p %}<input type="hidden" name="puesto" value="{{ p.id }}">{% endif %}
+          <button class="btn btn-sm btn-primary" type="submit">Finalizar y llamar siguiente</button></form>
+        {% include 'turnos/_accion.html' with t=t accion='finalizar' texto='Solo finalizar' clase='' %}
+        {% include 'turnos/_accion.html' with t=t accion='rellamar' texto='Volver a llamar' clase='btn-ambar' %}
+        {% include 'turnos/_accion.html' with t=t accion='ausente' texto='No se presentó' clase='' %}
+        {% include 'turnos/_accion.html' with t=t accion='devolver' texto='Devolver a la cola' clase='' %}
+        {% include 'turnos/_accion.html' with t=t accion='cancelar' texto='Cancelar' clase='btn-peligro' %}
+      </div>
+      {% if t.llamadas > 1 %}<small style="color:var(--suave)">Llamado {{ t.llamadas }} veces</small>{% endif %}
+    {% else %}
+      <p style="color:var(--suave);margin:.8rem 0 1rem">Libre. Listo para atender.</p>
+      <form method="post" action="{% url 'llamar_siguiente' %}">{% csrf_token %}
+        {% if p %}<input type="hidden" name="puesto" value="{{ p.id }}">{% endif %}
+        <button class="btn btn-ambar" type="submit">Llamar siguiente</button></form>
+    {% endif %}
+    {% for e in tj.extra %}<p style="color:var(--suave);margin-top:.6rem">También en este puesto: {{ e.etiqueta }} {{ e.cliente }}</p>{% endfor %}
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>
+
+{% if sin_puesto %}
+<div class="glass entra" style="margin-bottom:1.6rem">
+  <h3 style="margin-bottom:.6rem">Atendiendo sin puesto asignado</h3>
+  {% for t in sin_puesto %}
+  <div class="fila-turno">
+    <span><span class="codigo">{{ t.etiqueta }}</span> {{ t.cliente }}</span>
+    <span class="btn-grupo">
+      {% include 'turnos/_accion.html' with t=t accion='finalizar' texto='Finalizar' clase='' %}
+      {% include 'turnos/_accion.html' with t=t accion='devolver' texto='Devolver a la cola' clase='' %}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="glass entra" style="margin-bottom:1.6rem">
+  <h2 style="margin-bottom:1rem">Cola de espera</h2>
+  <div class="scroll"><table class="tabla">
+    <thead><tr><th>Turno</th><th>Cliente</th><th>Servicio</th><th>Espera</th><th>Acciones</th></tr></thead>
+    <tbody>
+    {% for t, est in cola %}
+      <tr>
+        <td><span class="codigo p-{{ t.prioridad_efectiva }}">{{ t.etiqueta }}</span>
+          {% if t.prioridad %}<br><small class="p-{{ t.prioridad }}">{{ t.get_prioridad_display }}</small>{% elif t.subio_por_espera %}<br><small class="p-1">Subió por espera</small>{% endif %}</td>
+        <td>{{ t.cliente }}{% if t.placa %}<br><small class="codigo">{{ t.placa }}</small>{% endif %}{% if t.telefono %}<br><small style="color:var(--suave)">{{ t.telefono }}</small>{% endif %}
+          {% if t.origen == 'mostrador' %}<br><small style="color:var(--suave)">Mostrador</small>{% endif %}</td>
+        <td>{{ t.servicio.nombre|default:"—" }}</td>
+        <td>{{ t.minutos_esperando }} min<br><small style="color:var(--suave)">faltan ~{{ est }}</small></td>
+        <td><div class="btn-grupo">
+          <form class="fila-form atender" method="post" action="{% url 'accion_turno' t.id 'llamar' %}">{% csrf_token %}
+            {% if puestos %}<label class="sr" for="p{{ t.id }}">Puesto</label>
+            <select id="p{{ t.id }}" name="puesto" class="sel-sm">
+              {% for p in puestos %}<option value="{{ p.id }}" {% if p.id == mi_puesto %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
+            </select>{% endif %}
+            <button class="btn btn-sm btn-primary" type="submit">Atender ahora</button></form>
+          {% include 'turnos/_accion.html' with t=t accion='subir' texto='Subir' clase='' %}
+          {% include 'turnos/_accion.html' with t=t accion='ausente' texto='Ausente' clase='' %}
+          {% include 'turnos/_accion.html' with t=t accion='cancelar' texto='Cancelar' clase='btn-peligro' %}
+        </div></td>
+      </tr>
+    {% empty %}<tr><td colspan="5" style="color:var(--suave)">No hay nadie esperando.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<details class="glass entra" style="margin-bottom:1.6rem">
+  <summary style="cursor:pointer;font:600 1.3rem var(--display)">Registrar cliente que llegó al mostrador</summary>
+  <form method="post" action="{% url 'crear_mostrador' %}" style="margin-top:1rem">{% csrf_token %}
+    <div class="grid g2">
+      <div class="campo"><label for="m-cliente">Nombre</label><input id="m-cliente" name="cliente" maxlength="100"></div>
+      <div class="campo"><label for="m-placa">Placa</label><input id="m-placa" name="placa" maxlength="10" autocapitalize="characters"></div>
+      <div class="campo"><label for="m-servicio">Servicio</label>
+        <select id="m-servicio" name="servicio">{% for s in servicios %}<option value="{{ s.id }}">{{ s.icono }} {{ s.nombre }}</option>{% endfor %}</select></div>
+      <div class="campo"><label for="m-prioridad">Prioridad</label>
+        <select id="m-prioridad" name="prioridad"><option value="0">Normal</option><option value="1">Alta</option><option value="2">Urgente</option></select></div>
+      <div class="campo"><label for="m-tel">Celular</label><input id="m-tel" name="telefono" type="tel" maxlength="20"></div>
+      <div class="campo"><label for="m-nec">Qué necesita</label><input id="m-nec" name="necesidad"></div>
+    </div>
+    <button class="btn btn-primary" type="submit">Generar turno</button>
+  </form>
+</details>
+
+{% if recientes %}
+<div class="glass entra"><h2 style="margin-bottom:1rem">Últimos cerrados</h2>
+  {% for t in recientes %}<div class="fila-turno">
+    <span class="codigo">{{ t.etiqueta }} <span style="font-family:var(--cuerpo);font-weight:500">{{ t.cliente }}</span></span>
+    <span class="btn-grupo"><span class="etiqueta e-{{ t.estado }}">{{ t.get_estado_display }}</span>
+      {% if t.estado != 'atendido' %}{% include 'turnos/_accion.html' with t=t accion='devolver' texto='Reabrir' clase='' %}{% endif %}</span>
+  </div>{% endfor %}
+</div>
+{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const raiz = document.getElementById('panel');
+  // Cronómetros de atención en vivo
+  const tic = () => document.querySelectorAll('.cronometro').forEach(el => {
+    const s = Math.max(0, Math.floor((Date.now() - new Date(el.dataset.desde)) / 1000));
+    el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  });
+  tic(); setInterval(tic, 1000);
+  // Refresca solo cuando la cola cambió y no estás escribiendo
+  setInterval(async () => {
+    if (document.hidden || document.activeElement.matches('input,textarea,select') || document.querySelector('details[open]')) return;
+    try {
+      const r = await fetch(raiz.dataset.api, { cache: 'no-store' });
+      if (r.ok && (await r.json()).huella !== raiz.dataset.huella) location.reload();
+    } catch (_) {}
+  }, 5000);
+})();
+</script>
+{% endblock %}

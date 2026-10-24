@@ -1,0 +1,29 @@
+{% extends 'turnos/base.html' %}
+{% block contenido %}
+<section class="hero">
+  <h1 class="entra">Tu turno, sin hacer fila.</h1>
+  <p class="entra">Pide tu turno desde el celular, sigue tu posición en vivo y llega al taller cuando falten pocos minutos.</p>
+  <div class="acciones entra">
+    <a class="btn btn-primary" href="{% url 'solicitar_turno' %}">Pedir mi turno</a>
+    <a class="btn" href="{% url 'consultar_turno' %}">Ya tengo un turno</a>
+  </div>
+</section>
+
+<div class="grid g4">
+  <div class="glass tilt entra"><div class="dato"><span data-cuenta="{{ en_espera }}">0</span><small>personas en espera</small></div></div>
+  <div class="glass tilt entra"><div class="dato"><span data-cuenta="{{ espera_aprox }}">0</span> min<small>espera aproximada hoy</small></div></div>
+  <div class="glass tilt entra"><div class="dato"><span data-cuenta="{{ atendiendo.count }}">0</span><small>puestos atendiendo ahora</small></div></div>
+</div>
+
+{% if servicios %}
+<h2 style="margin:2.5rem 0 1rem" class="entra">Servicios disponibles</h2>
+<div class="grid g4">
+  {% for s in servicios %}
+  <a class="glass tilt entra" href="{% url 'solicitar_turno' %}?servicio={{ s.id }}" style="color:inherit">
+    <div style="font-size:2rem">{{ s.icono }}</div><h3>{{ s.nombre }}</h3>
+    <p style="color:var(--suave)">Unos {{ s.promedio_real }} min por vehículo</p>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

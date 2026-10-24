@@ -1,0 +1,26 @@
+{% extends 'turnos/base.html' %}
+{% block titulo %}Estadísticas{% endblock %}
+{% block contenido %}
+<h1 class="entra" style="font-size:clamp(1.8rem,4vw,2.6rem);margin-bottom:1.4rem">Estadísticas de hoy</h1>
+<div class="grid g4" style="margin-bottom:1.4rem">
+  <div class="glass tilt entra"><div class="dato"><span data-cuenta="{{ total }}">0</span><small>turnos generados</small></div></div>
+  <div class="glass tilt entra"><div class="dato" style="color:var(--verde)"><span data-cuenta="{{ atendidos }}">0</span><small>atendidos</small></div></div>
+  <div class="glass tilt entra"><div class="dato" style="color:var(--rojo)"><span data-cuenta="{{ cancelados }}">0</span><small>cancelados</small></div></div>
+  <div class="glass tilt entra"><div class="dato" style="color:var(--suave)"><span data-cuenta="{{ ausentes }}">0</span><small>no se presentaron</small></div></div>
+  <div class="glass tilt entra"><div class="dato"><span data-cuenta="{{ espera_prom }}">0</span> min<small>espera promedio</small></div></div>
+  <div class="glass tilt entra"><div class="dato"><span data-cuenta="{{ atencion_prom }}">0</span> min<small>atención promedio</small></div></div>
+</div>
+<div class="glass entra"><h2>Horas de mayor demanda</h2>
+  <div class="hist">{% for x in horas %}<div style="--h:{% widthratio x.n max_hora 100 %}%" title="{{ x.n }} turnos"><span>{{ x.h }}h</span></div>{% endfor %}</div>
+</div>
+<div class="glass entra" style="margin-top:1.4rem"><h2 style="margin-bottom:.8rem">Por servicio</h2>
+  {% for s in por_servicio %}<div style="display:flex;justify-content:space-between;padding:.5rem 0;border-top:1px solid var(--linea)">
+    <span>{{ s.servicio__nombre|default:"Sin servicio" }}</span><b class="codigo">{{ s.n }}</b></div>
+  {% empty %}<p style="color:var(--suave)">Aún no hay turnos hoy.</p>{% endfor %}
+</div>
+<div class="glass entra" style="margin-top:1.4rem"><h2 style="margin-bottom:.8rem">Atendidos por puesto</h2>
+  {% for s in por_puesto %}<div style="display:flex;justify-content:space-between;padding:.5rem 0;border-top:1px solid var(--linea)">
+    <span>{{ s.puesto__nombre|default:"Sin puesto" }}</span><b class="codigo">{{ s.n }}</b></div>
+  {% empty %}<p style="color:var(--suave)">Aún no hay turnos atendidos hoy.</p>{% endfor %}
+</div>
+{% endblock %}

@@ -1,4 +1,0 @@
-<form class="fila-form" method="post" action="{% url 'accion_turno' t.id accion %}">{% csrf_token %}
-  {% if puesto_id %}<input type="hidden" name="puesto" value="{{ puesto_id }}">{% endif %}
-  <button class="btn btn-sm {{ clase }}" type="submit">{{ texto }}</button>
-</form>
